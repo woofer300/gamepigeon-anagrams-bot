@@ -1,0 +1,10 @@
+[project]
+name = "gamepigeon-anagrams-bot"
+version = "0.1.0"
+description = "Bot that plays GamePigeon Anagrams using iPhone mirroring"
+readme = "README.md"
+requires-python = ">=3.13"
+dependencies = [
+    "pyautogui>=0.9.54",
+    "pytesseract>=0.3.13",
+]
