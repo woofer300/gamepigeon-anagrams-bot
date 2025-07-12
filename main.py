@@ -32,9 +32,18 @@ def find_possible_words(letters, word_list):
     possible_words.sort(key=lambda x: (-len(x), x))
     return possible_words
 
-# Convert each word to numbers, 1 being clicking the left-most letter, 7 being clicking the right-most letter
+# Convert each word to numbers, 0 being clicking the left-most letter, 6 being clicking the right-most letter
 def convert_word_list_to_click_order(word_list, letters):
-    pass
+    click_order = []
+    for i in range(len(word_list)):
+        word = word_list[i]
+        click_order.append("")
+        for letter in word:
+            for j in range(len(letters)):
+                if letters[j] == letter and str(j) not in click_order[i]:
+                    click_order[i] += str(j)
+                    break
+    return click_order
 
 def calculate_max_points(word_list):
     max_score = 0
@@ -123,6 +132,8 @@ def main():
 
     possible_words = find_possible_words(letters, word_list)
     display_results(possible_words, letters)
+
+    click_order = convert_word_list_to_click_order(possible_words, letters)
 
 if __name__ == "__main__":
     main()
