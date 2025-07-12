@@ -1,5 +1,9 @@
 from collections import Counter
 import time
+import pyautogui
+import pytesseract
+from PIL import Image, ImageFilter
+import numpy as np
 
 def load_word_list(filename="anagrams-words.txt"):
     with open(filename, 'r') as word_list:
@@ -27,6 +31,10 @@ def find_possible_words(letters, word_list):
     # Sort by length (longest first), then alphabetically
     possible_words.sort(key=lambda x: (-len(x), x))
     return possible_words
+
+# Convert each word to numbers, 1 being clicking the left-most letter, 7 being clicking the right-most letter
+def convert_word_list_to_click_order(word_list, letters):
+    pass
 
 def calculate_max_points(word_list):
     max_score = 0
@@ -68,44 +76,53 @@ def display_results(words, letters):
     print(f"Total points: {calculate_max_points(words)}")
 
 def main():
-    print("GamePigeon Anagrams Bot")
-    print("=" * 30)
-    
-    # Load word list
-    print("Loading word list...")
-    start_time = time.time()
     word_list = load_word_list()
-    load_time = time.time() - start_time
-    
     if not word_list:
         return
-    
-    print(f"Loaded {len(word_list):,} words in {load_time:.2f} seconds")
-    
-    while True:
-        print("\nEnter 7 letters (or 'quit' to exit):")
-        letters = input("> ").strip()
-        
-        if letters.lower() == 'quit':
-            print("Goodbye!")
-            break
-        
-        if len(letters.replace(" ", "")) != 7:
-            print("Please enter exactly 7 letters.")
-            continue
-        
-        if not letters.replace(" ", "").isalpha():
-            print("Please enter only letters.")
-            continue
-        
-        # Find possible words
-        start_time = time.time()
-        possible_words = find_possible_words(letters, word_list)
-        search_time = time.time() - start_time
-        
-        # Display results
-        display_results(possible_words, letters)
-        print(f"\nSearch completed in {search_time:.3f} seconds")
+    start_button_coords = pyautogui.locateOnScreen('./images/start_button.png', confidence=0.7)
+    if start_button_coords:
+        # Divide by 2 for MacOS Retina display scaling
+        start_button_center_coords = ((start_button_coords[0] + start_button_coords[2] / 2) / 2, (start_button_coords[1] + start_button_coords[3] / 2) / 2)
+    pyautogui.click(start_button_center_coords, clicks=2, interval=0.2)
+    time.sleep(1)
+
+    enter_button_coords = pyautogui.locateOnScreen('./images/enter_button.png', confidence=0.7)
+    if enter_button_coords:
+        # Divide by 2 for MacOS Retina display scaling
+        enter_button_center_coords = ((enter_button_coords[0] + enter_button_coords[2] / 2) / 2, (enter_button_coords[1] + enter_button_coords[3] / 2) / 2)
+
+    empty_letter_boxes_unscaled_coords = pyautogui.locateOnScreen('./images/empty_letter_boxes_collection.png', confidence=0.9)
+    if empty_letter_boxes_unscaled_coords:
+        # Divide by 2 for MacOS Retina display scaling
+        letter_boxes_coordinates = (
+            int(empty_letter_boxes_unscaled_coords[0] / 2),
+            int((empty_letter_boxes_unscaled_coords[1] + empty_letter_boxes_unscaled_coords[3]) / 2),
+            int(empty_letter_boxes_unscaled_coords[2] / 2),
+            int(empty_letter_boxes_unscaled_coords[3] / 2)
+        )
+        # Same as letter_boxes_coordinates but with a 2.5% margin on the left and right to avoid detecting off of the iPhone screen
+        screenshot_coordinates = (
+            int((empty_letter_boxes_unscaled_coords[0] + empty_letter_boxes_unscaled_coords[2] / 40) / 2),
+            int((empty_letter_boxes_unscaled_coords[1] + empty_letter_boxes_unscaled_coords[3]) / 2),
+            int((empty_letter_boxes_unscaled_coords[2] - empty_letter_boxes_unscaled_coords[2] / 20) / 2),
+            int(empty_letter_boxes_unscaled_coords[3] / 2)
+        )
+    letters_screenshot = pyautogui.screenshot(region=screenshot_coordinates)
+
+    # Binarize the image
+    img_array = np.array(letters_screenshot.convert('L'))
+    threshold = 30  # Adjust this value if needed
+    img_array = np.where(img_array < threshold, 0, 255).astype(np.uint8)
+    binarized_letters = Image.fromarray(img_array, mode='L')
+
+    # Simple OCR for black text
+    letters_text = pytesseract.image_to_string(binarized_letters, config='--psm 7 -c tessedit_char_whitelist=ABCDEFGHIJKLMNOPQRSTUVWXYZ')
+    letters = letters_text.strip().replace(' ', '').upper()
+
+    print(f"Detected letters: {letters}")
+
+    possible_words = find_possible_words(letters, word_list)
+    display_results(possible_words, letters)
 
 if __name__ == "__main__":
     main()
