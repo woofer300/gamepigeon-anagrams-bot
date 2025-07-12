@@ -9,6 +9,17 @@ def load_word_list(filename="anagrams-words.txt"):
     with open(filename, 'r') as word_list:
         return [line.strip().upper() for line in word_list if line.strip()]
 
+def ocr(screenshot):
+    # Binarize the image
+    img_array = np.array(screenshot.convert('L'))
+    threshold = 30
+    img_array = np.where(img_array < threshold, 0, 255).astype(np.uint8)
+    binarized_letters = Image.fromarray(img_array, mode='L')
+
+    # OCR for black alphabet letters
+    letters_text = pytesseract.image_to_string(binarized_letters, config='--psm 7 -c tessedit_char_whitelist=ABCDEFGHIJKLMNOPQRSTUVWXYZ')
+    return letters_text.strip().replace(' ', '').upper()
+
 def can_make_word_from_letters(word, letters):
     word_counter = Counter(word)
     letters_counter = Counter(letters)
@@ -86,8 +97,6 @@ def display_results(words, letters):
 
 def main():
     word_list = load_word_list()
-    if not word_list:
-        return
     start_button_coords = pyautogui.locateOnScreen('./images/start_button.png', confidence=0.7)
     if start_button_coords:
         # Divide by 2 for MacOS Retina display scaling
@@ -117,16 +126,7 @@ def main():
             int(empty_letter_boxes_unscaled_coords[3] / 2)
         )
     letters_screenshot = pyautogui.screenshot(region=screenshot_coordinates)
-
-    # Binarize the image
-    img_array = np.array(letters_screenshot.convert('L'))
-    threshold = 30  # Adjust this value if needed
-    img_array = np.where(img_array < threshold, 0, 255).astype(np.uint8)
-    binarized_letters = Image.fromarray(img_array, mode='L')
-
-    # Simple OCR for black text
-    letters_text = pytesseract.image_to_string(binarized_letters, config='--psm 7 -c tessedit_char_whitelist=ABCDEFGHIJKLMNOPQRSTUVWXYZ')
-    letters = letters_text.strip().replace(' ', '').upper()
+    letters = ocr(letters_screenshot)
 
     print(f"Detected letters: {letters}")
 
