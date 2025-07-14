@@ -1,7 +1,7 @@
 from collections import Counter
 import time
 import pyautogui
-import pytesseract
+import easyocr
 from PIL import Image, ImageFilter
 import numpy as np
 
@@ -9,16 +9,31 @@ def load_word_list(filename="anagrams-words.txt"):
     with open(filename, 'r') as word_list:
         return [line.strip().upper() for line in word_list if line.strip()]
 
-def ocr(screenshot):
+def ocr(screenshot, reader):
     # Binarize the image
     img_array = np.array(screenshot.convert('L'))
     threshold = 30
     img_array = np.where(img_array < threshold, 0, 255).astype(np.uint8)
-    binarized_letters = Image.fromarray(img_array, mode='L')
+    binarized_letters = Image.fromarray(img_array)
 
-    # OCR for black alphabet letters
-    letters_text = pytesseract.image_to_string(binarized_letters, config='--psm 7 -c tessedit_char_whitelist=ABCDEFGHIJKLMNOPQRSTUVWXYZ')
-    return letters_text.strip().replace(' ', '').upper()
+    # Use EasyOCR to detect text from binarized image
+    detections = reader.readtext(np.array(binarized_letters), allowlist='ABCDEFGHIJKLMNOPQRSTUVWXYZ', detail=0)
+
+    if detections:
+        # Join all detected text - EasyOCR returns (bbox, text, confidence) tuples
+        text_parts = []
+        for detection in detections:
+            text_parts.append(str(detection).strip())
+        text = ''.join(text_parts).upper().replace(' ', '')
+        print(f"EasyOCR detected: '{text}' (length: {len(text)})")
+
+        return text
+    else:
+        print("EasyOCR didn't detect any text")
+
+    # Ask user for manual input
+    manual_input = input("Please enter the letters manually: ").strip().upper()
+    return manual_input
 
 def can_make_word_from_letters(word, letters):
     word_counter = Counter(word)
@@ -31,8 +46,6 @@ def can_make_word_from_letters(word, letters):
 
 def find_possible_words(letters, word_list):
     letters = letters.upper().replace(" ", "")
-    if len(letters) != 7:
-        raise ValueError("Please provide exactly 7 letters!")
 
     possible_words = []
     for word in word_list:
@@ -95,7 +108,17 @@ def display_results(words, letters):
     print(f"\nTotal words found: {len(words)}")
     print(f"Total points: {calculate_max_points(words)}")
 
+def execute_clicks(click_order, individual_letter_boxes_coordinates, enter_button_center_coords):
+    for word_click_order in click_order:
+        for click in word_click_order:
+            pyautogui.click(individual_letter_boxes_coordinates[int(click)])
+        pyautogui.click(enter_button_center_coords)
+        time.sleep(0.075)
+
 def main():
+    pyautogui.PAUSE = 0.0175
+    reader = easyocr.Reader(['en'])
+
     word_list = load_word_list()
     start_button_coords = pyautogui.locateOnScreen('./images/start_button.png', confidence=0.7)
     if start_button_coords:
@@ -111,22 +134,24 @@ def main():
 
     empty_letter_boxes_unscaled_coords = pyautogui.locateOnScreen('./images/empty_letter_boxes_collection.png', confidence=0.9)
     if empty_letter_boxes_unscaled_coords:
+        # 2.5% margin on the left and right to avoid detecting off of the iPhone screen
         # Divide by 2 for MacOS Retina display scaling
-        letter_boxes_coordinates = (
-            int(empty_letter_boxes_unscaled_coords[0] / 2),
-            int((empty_letter_boxes_unscaled_coords[1] + empty_letter_boxes_unscaled_coords[3]) / 2),
-            int(empty_letter_boxes_unscaled_coords[2] / 2),
-            int(empty_letter_boxes_unscaled_coords[3] / 2)
-        )
-        # Same as letter_boxes_coordinates but with a 2.5% margin on the left and right to avoid detecting off of the iPhone screen
         screenshot_coordinates = (
             int((empty_letter_boxes_unscaled_coords[0] + empty_letter_boxes_unscaled_coords[2] / 40) / 2),
             int((empty_letter_boxes_unscaled_coords[1] + empty_letter_boxes_unscaled_coords[3]) / 2),
             int((empty_letter_boxes_unscaled_coords[2] - empty_letter_boxes_unscaled_coords[2] / 20) / 2),
             int(empty_letter_boxes_unscaled_coords[3] / 2)
         )
+        # Divide by 2 for MacOS Retina display scaling
+        individual_letter_boxes_center_coordinates = []
+        for i in range(7):
+            individual_letter_boxes_center_coordinates.append((
+                int((empty_letter_boxes_unscaled_coords[0] + empty_letter_boxes_unscaled_coords[2] / 7 * i + empty_letter_boxes_unscaled_coords[2] / 14) / 2),
+                int((empty_letter_boxes_unscaled_coords[1] + empty_letter_boxes_unscaled_coords[3] * 1.5) / 2)
+            ))
+
     letters_screenshot = pyautogui.screenshot(region=screenshot_coordinates)
-    letters = ocr(letters_screenshot)
+    letters = ocr(letters_screenshot, reader)
 
     print(f"Detected letters: {letters}")
 
@@ -134,6 +159,7 @@ def main():
     display_results(possible_words, letters)
 
     click_order = convert_word_list_to_click_order(possible_words, letters)
+    execute_clicks(click_order, individual_letter_boxes_center_coordinates, enter_button_center_coords)
 
 if __name__ == "__main__":
     main()
