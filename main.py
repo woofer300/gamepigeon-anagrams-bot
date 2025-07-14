@@ -16,24 +16,13 @@ def ocr(screenshot, reader):
     img_array = np.where(img_array < threshold, 0, 255).astype(np.uint8)
     binarized_letters = Image.fromarray(img_array)
 
-    # Use EasyOCR to detect text from binarized image
     detections = reader.readtext(np.array(binarized_letters), allowlist='ABCDEFGHIJKLMNOPQRSTUVWXYZ', detail=0)
 
-    if detections:
-        # Join all detected text - EasyOCR returns (bbox, text, confidence) tuples
-        text_parts = []
-        for detection in detections:
-            text_parts.append(str(detection).strip())
-        text = ''.join(text_parts).upper().replace(' ', '')
-        print(f"EasyOCR detected: '{text}' (length: {len(text)})")
-
-        return text
-    else:
-        print("EasyOCR didn't detect any text")
-
-    # Ask user for manual input
-    manual_input = input("Please enter the letters manually: ").strip().upper()
-    return manual_input
+    text_parts = []
+    for detection in detections:
+        text_parts.append(str(detection).strip())
+    text = ''.join(text_parts).upper().replace(' ', '')
+    return text
 
 def can_make_word_from_letters(word, letters):
     word_counter = Counter(word)
@@ -116,23 +105,45 @@ def execute_clicks(click_order, individual_letter_boxes_coordinates, enter_butto
         time.sleep(0.075)
 
 def main():
-    pyautogui.PAUSE = 0.0175
     reader = easyocr.Reader(['en'])
 
     word_list = load_word_list()
-    start_button_coords = pyautogui.locateOnScreen('./images/start_button.png', confidence=0.7)
-    if start_button_coords:
-        # Divide by 2 for MacOS Retina display scaling
-        start_button_center_coords = ((start_button_coords[0] + start_button_coords[2] / 2) / 2, (start_button_coords[1] + start_button_coords[3] / 2) / 2)
+    try:
+        start_button_coords = pyautogui.locateOnScreen('./images/start_button.png', confidence=0.7)
+        if start_button_coords:
+            # Divide by 2 for MacOS Retina display scaling
+            start_button_center_coords = ((start_button_coords[0] + start_button_coords[2] / 2) / 2, (start_button_coords[1] + start_button_coords[3] / 2) / 2)
+    except pyautogui.ImageNotFoundException:
+        print("No start button detected! Please open the game to the start screen and try again.")
+        return
+
     pyautogui.click(start_button_center_coords, clicks=2, interval=0.2)
     time.sleep(1)
 
-    enter_button_coords = pyautogui.locateOnScreen('./images/enter_button.png', confidence=0.7)
-    if enter_button_coords:
-        # Divide by 2 for MacOS Retina display scaling
-        enter_button_center_coords = ((enter_button_coords[0] + enter_button_coords[2] / 2) / 2, (enter_button_coords[1] + enter_button_coords[3] / 2) / 2)
+    try:
+        enter_button_coords = pyautogui.locateOnScreen('./images/enter_button.png', confidence=0.7)
+        if enter_button_coords:
+            # Divide by 2 for MacOS Retina display scaling
+            enter_button_center_coords = ((enter_button_coords[0] + enter_button_coords[2] / 2) / 2, (enter_button_coords[1] + enter_button_coords[3] / 2) / 2)
+    except pyautogui.ImageNotFoundException:
+        print("No enter button detected!")
+        return
 
-    empty_letter_boxes_unscaled_coords = pyautogui.locateOnScreen('./images/empty_letter_boxes_collection.png', confidence=0.9)
+    try:
+        empty_letter_boxes_unscaled_coords = pyautogui.locateOnScreen('./images/seven_empty_letter_boxes_collection.png', confidence=0.9)
+        number_of_empty_letter_boxes = 7
+        # More aggressive for 7 letters, more words to get through
+        pyautogui.PAUSE = 0.0175
+    except pyautogui.ImageNotFoundException:
+        try:
+            empty_letter_boxes_unscaled_coords = pyautogui.locateOnScreen('./images/six_empty_letter_boxes_collection.png', confidence=0.9)
+            number_of_empty_letter_boxes = 6
+            # Less aggressive for 6 letters, less words to get through
+            pyautogui.PAUSE = 0.0275
+        except pyautogui.ImageNotFoundException:
+            print("No letter boxes detected!")
+            return
+
     if empty_letter_boxes_unscaled_coords:
         # 2.5% margin on the left and right to avoid detecting off of the iPhone screen
         # Divide by 2 for MacOS Retina display scaling
@@ -144,9 +155,9 @@ def main():
         )
         # Divide by 2 for MacOS Retina display scaling
         individual_letter_boxes_center_coordinates = []
-        for i in range(7):
+        for i in range(number_of_empty_letter_boxes):
             individual_letter_boxes_center_coordinates.append((
-                int((empty_letter_boxes_unscaled_coords[0] + empty_letter_boxes_unscaled_coords[2] / 7 * i + empty_letter_boxes_unscaled_coords[2] / 14) / 2),
+                int((empty_letter_boxes_unscaled_coords[0] + empty_letter_boxes_unscaled_coords[2] / number_of_empty_letter_boxes * i + empty_letter_boxes_unscaled_coords[2] / (number_of_empty_letter_boxes * 2)) / 2),
                 int((empty_letter_boxes_unscaled_coords[1] + empty_letter_boxes_unscaled_coords[3] * 1.5) / 2)
             ))
 
@@ -154,6 +165,9 @@ def main():
     letters = ocr(letters_screenshot, reader)
 
     print(f"Detected letters: {letters}")
+    if not letters or len(letters) != number_of_empty_letter_boxes:
+        print("Incorrect number of letters detected!")
+        letters = input("Please enter the letters manually: ").strip().upper()
 
     possible_words = find_possible_words(letters, word_list)
     display_results(possible_words, letters)
