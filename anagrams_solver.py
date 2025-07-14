@@ -5,7 +5,7 @@ import easyocr
 from PIL import Image, ImageFilter
 import numpy as np
 
-def load_word_list(filename="anagrams-words.txt"):
+def load_word_list(filename="anagrams_words.txt"):
     with open(filename, 'r') as word_list:
         return [line.strip().upper() for line in word_list if line.strip()]
 
