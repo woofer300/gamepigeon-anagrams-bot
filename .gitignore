@@ -11,3 +11,6 @@ wheels/
 
 # MacOs
 .DS_Store
+
+# pyinstaller
+anagrams_solver.spec
