@@ -4,9 +4,13 @@ import pyautogui
 import easyocr
 from PIL import Image, ImageFilter
 import numpy as np
+from os import path
+
+def path_to_file(filename):
+    return path.abspath(path.join(path.dirname(__file__), filename))
 
 def load_word_list(filename="anagrams_words.txt"):
-    with open(filename, 'r') as word_list:
+    with open(path_to_file(filename), 'r') as word_list:
         return [line.strip().upper() for line in word_list if line.strip()]
 
 def ocr(screenshot, reader):
@@ -109,7 +113,7 @@ def main():
 
     word_list = load_word_list()
     try:
-        start_button_coords = pyautogui.locateOnScreen('./images/start_button.png', confidence=0.7)
+        start_button_coords = pyautogui.locateOnScreen(path_to_file('images/start_button.png'), confidence=0.7)
         if start_button_coords:
             # Divide by 2 for MacOS Retina display scaling
             start_button_center_coords = ((start_button_coords[0] + start_button_coords[2] / 2) / 2, (start_button_coords[1] + start_button_coords[3] / 2) / 2)
@@ -121,7 +125,7 @@ def main():
     time.sleep(1)
 
     try:
-        enter_button_coords = pyautogui.locateOnScreen('./images/enter_button.png', confidence=0.7)
+        enter_button_coords = pyautogui.locateOnScreen(path_to_file('images/enter_button.png'), confidence=0.7)
         if enter_button_coords:
             # Divide by 2 for MacOS Retina display scaling
             enter_button_center_coords = ((enter_button_coords[0] + enter_button_coords[2] / 2) / 2, (enter_button_coords[1] + enter_button_coords[3] / 2) / 2)
@@ -130,13 +134,13 @@ def main():
         return
 
     try:
-        empty_letter_boxes_unscaled_coords = pyautogui.locateOnScreen('./images/seven_empty_letter_boxes_collection.png', confidence=0.9)
+        empty_letter_boxes_unscaled_coords = pyautogui.locateOnScreen(path_to_file('images/seven_empty_letter_boxes_collection.png'), confidence=0.9)
         number_of_empty_letter_boxes = 7
         # More aggressive for 7 letters, more words to get through
         pyautogui.PAUSE = 0.0175
     except pyautogui.ImageNotFoundException:
         try:
-            empty_letter_boxes_unscaled_coords = pyautogui.locateOnScreen('./images/six_empty_letter_boxes_collection.png', confidence=0.9)
+            empty_letter_boxes_unscaled_coords = pyautogui.locateOnScreen(path_to_file('images/six_empty_letter_boxes_collection.png'), confidence=0.9)
             number_of_empty_letter_boxes = 6
             # Less aggressive for 6 letters, less words to get through
             pyautogui.PAUSE = 0.0275
