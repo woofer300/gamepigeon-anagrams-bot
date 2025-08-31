@@ -1,2 +1,13 @@
 # Gamepigeon Anagrams Bot
-A bot that plays GamePigeon Anagrams using iPhone mirroring
+Max out GamePigeon Anagrams games using iPhone mirroring!
+
+<img src="examplescore.PNG" width="400">
+
+**Steps**
+
+1. Open the iPhone Mirroring app and launch a GamePigeon Anagrams game. Make sure you are on the screen with the start button.
+
+<img src="startscreen.jpeg" width="400">
+
+2. Run the anagrams_solver executable. You may need to grant your terminal permissions the first time.
+3. Wait for the program to start! It usually takes around 20-30 seconds to load and start.
